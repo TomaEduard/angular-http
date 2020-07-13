@@ -1,7 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpEventType } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Post } from './post.model';
-import { map, catchError } from 'rxjs/Operators';
+import { map, catchError, tap } from 'rxjs/Operators';
 import { Subject, throwError } from 'rxjs';
 
 @Injectable({providedIn: 'root'})
@@ -16,7 +16,10 @@ export class PostService {
         this.http
         .post<{name: string}>(
             'https://ng-complete-guide-a5737.firebaseio.com/posts.json',
-            postData
+            postData,
+            {
+                observe: 'response'
+            }
             )
             .subscribe(
                 responseData => {
@@ -28,9 +31,20 @@ export class PostService {
         }
         
         fetchPost() {
+            let searchParams = new HttpParams();
+            searchParams = searchParams.append('print', 'pretty');
+            searchParams = searchParams.append('custom', 'key');
+
             return this.http
             .get<{ [key: string]: Post }>(
-                'https://ng-complete-guide-a5737.firebaseio.com/posts.json'
+                'https://ng-complete-guide-a5737.firebaseio.com/posts.json',
+                {
+                    headers: new HttpHeaders({ 'Custom-Header': 'Hello' }),
+                    // params: new HttpParams().set('print', 'pretty')
+                    // OR
+                    params: searchParams,
+                    responseType: 'json'
+                }
                 )
                 .pipe(
                     map(responseData => {
@@ -42,18 +56,32 @@ export class PostService {
                             }
                         }
                         return postsArray;
-                    }))
-                    // ,
-                // catchError(errorRes => {
-                //     // Send to analytics server
-                //     return throwError(errorRes);
-                // })
-                    
+                    })
+                    ,
+                catchError(errorRes => {
+                    // Send to analytics server
+                    return throwError(errorRes);
+                })
+            )        
         }
                 
                 
     deletePosts() {
-        return this.http.delete('https://ng-complete-guide-a5737.firebaseio.com/posts.json');
+        return this.http.delete(
+            'https://ng-complete-guide-a5737.firebaseio.com/posts.json', {
+                observe: 'events',
+                responseType: 'text'
+            }
+        ).pipe(
+            tap(event => {
+            console.log(event);
+            if (event.type === HttpEventType.Sent) {
+              // ...
+            }
+            if (event.type === HttpEventType.Response) {
+                console.log(event.body);
+            }
+        }));
     }
 
 }
